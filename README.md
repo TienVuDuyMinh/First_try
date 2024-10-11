@@ -18,7 +18,7 @@ Dự án được xây dựng với cấu trúc gồm 4 thành phần chính:
 
 ## Báo cáo và Slide
 - [Báo cáo chi tiết](https://docs.google.com/presentation/d/1sk61wMKv1ldaa-EuibBePA_RFSuo7brf/edit?usp=sharing&ouid=102312488798806032848&rtpof=true&sd=true](https://drive.google.com/file/d/1Fd-7OkbLF7Aj4TIhSGv59GKT3oU9aB7A/view?usp=sharing))
-- [Slide trình bày](https://drive.google.com/file/d/1T2KnVIqyXq76WS9YQc10MBfidlIxPJyt/view?usp=sharing)
+- [Slide trình bày](https://drive.google.com/file/d/1T2KnVIqyXq76WS9YQc10MBfidlIxPJyt/view?usp=sharing](https://docs.google.com/presentation/d/1sk61wMKv1ldaa-EuibBePA_RFSuo7brf/edit?usp=sharing&ouid=102312488798806032848&rtpof=true&sd=true))
 
 ## Hướng dẫn sử dụng
 1. **Clone repository**:
