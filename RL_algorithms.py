@@ -1,134 +1,167 @@
+import Environment
+from Environment import SokobanEnvironment
 import numpy as np
+import matplotlib.pyplot as plt
+from IPython import display
+import pandas as pd
+import pygame 
+import os
 
-# Hyperparameters
-learning_rate = 0.1        # Alpha - Learning rate
-discount_factor = 0.95     # Gamma - Discount factor
-exploration_rate = 1.0     # Epsilon - Exploration rate
-epsilon_min = 0.01         # Minimum epsilon
-epsilon_decay = 0.995      # Epsilon decay rate
-episodes = 1000            # Total number of episodes
-max_steps_per_episode = 100 # Maximum steps per episode
+ #Q-learning algorithm
+def Q_learning(env,learning_rate = 0.1, discount_factor = 0.9, epsilon = 0.6, num_episodes = 1000):
+    # Setting Q
+    state_space = env.num_states.n
+    action_space = env.action_space.n
+
+    q_table = np.zeros((state_space, action_space))
+
+    eva = []
+
+    for episode in range(num_episodes):
+        print(f'---- Episode: {episode}')
+        state = env.reset()
+        done = False
+        Return = 0
+
+        while not done:
+            # Choose an action using epsilon-greedy policy
+            if np.random.uniform(0, 1) < epsilon:
+                action = env.action_space.sample()  # Explore
+            else:
+                action = np.argmax(q_table[np.argmax(q_table[state, :])])  # Exploit     
+
+            next_state, reward, done, _ = env.step(action)
+
+            # Update Q-table using the Q-learning formula
+            q_table[state, action] = (1 - learning_rate) * q_table[state, action] + \
+                                    learning_rate * (reward + discount_factor * np.max(q_table[next_state, :]))
+
+            state = next_state
+            Return += reward
+        eva.append(Return)
+        display.clear_output()
+    return q_table, eva
 
 
-class QLearningAgent:
-    def __init__(self, state_size, action_size, learning_rate=0.1, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
-        self.state_size = state_size
-        self.action_size = action_size
-        self.learning_rate = learning_rate
-        self.gamma = gamma
-        self.epsilon = epsilon
-        self.epsilon_decay = epsilon_decay
-        self.q_table = np.zeros((state_size, action_size))
+# SARSA
+def sarsa(env, learning_rate=0.1, discount_factor=0.9, epsilon=0.1, num_episodes = 1000):
+    state_space = env.num_states.n
+    action_space = env.action_space.n
 
-    def encode_state(self, state):
-        """
-        Chuyển đổi trạng thái thành chỉ số duy nhất nếu cần thiết.
-        Trong trường hợp này, chỉ cần trả về state đã mã hóa mà không cần giải nén.
-        """
-        # Vì state đã là một số nguyên (int) nên không cần giải nén nữa
-        return state  # Trả về state đã được mã hóa
+    # Initialize the Q-table 
+    q_table = np.zeros((state_space, action_space))
+    eva = []
+    Return = 0
 
-    def choose_action(self, state):
-        # Mã hóa state nếu cần thiết
-        state_index = self.encode_state(state)
+    # SARSA algorithm
+    for episode in range(num_episodes):
+        print(f'---- Episode: {episode}')
+        state = env.reset()
+        done = False
 
-        # Chọn hành động
-        if np.random.rand() <= self.epsilon:
-            return np.random.choice(self.action_size)  # Chọn hành động ngẫu nhiên
+        # Choose an action using epsilon-greedy policy
+        if np.random.uniform(0, 1) < epsilon:
+            action = env.action_space.sample()  # Explore
         else:
-            return np.argmax(self.q_table[state_index])  # Chọn hành động có Q-value cao nhất
+            action = np.argmax(q_table[state, :])  # Exploit
 
-    def learn(self, state, action, reward, next_state, done):
-        # Mã hóa state và next_state nếu cần thiết
-        state_index = self.encode_state(state)
-        next_state_index = self.encode_state(next_state)
+        while not done:
+            Return = 0
+            next_state, reward, done, _ = env.step(action)
 
-        # Tính Q-value hiện tại
-        current_q = self.q_table[state_index, action]
+            # Choose the next action using epsilon-greedy policy
+            if np.random.uniform(0, 1) < epsilon:
+                next_action = env.action_space.sample()  # Explore
+            else:
+                next_action = np.argmax(q_table[next_state, :])  # Exploit
 
-        # Tính giá trị Q-value mục tiêu
-        max_future_q = np.max(self.q_table[next_state_index])
-        target_q = reward + (self.gamma * max_future_q * (1 - done))
+            # Update Q-table using SARSA formula
+            q_table[state, action] = q_table[state, action] + learning_rate * (
+                reward + discount_factor * q_table[next_state, next_action] - q_table[state, action]
+            )
 
-        # Cập nhật Q-value
-        self.q_table[state_index, action] = (1 - self.learning_rate) * current_q + self.learning_rate * target_q
+            state = next_state
+            action = next_action
+            Return += reward
+        eva.append(Return)
+        display.clear_output()
+    return q_table, eva
 
-        # Giảm epsilon (tốc độ giảm exploration)
-        if done:
-            self.epsilon *= self.epsilon_decay
+def first_visit_monte_carlo(env, num_episodes, epsilon=0.1):
+    state_space = env.num_states.n
+    action_space = env.action_space.n
 
-class SarsaAgent:
-    def __init__(self, state_size, action_size, learning_rate=0.1, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
-        self.state_size = state_size
-        self.action_size = action_size
-        self.learning_rate = learning_rate
-        self.gamma = gamma
-        self.epsilon = epsilon
-        self.epsilon_decay = epsilon_decay
-        self.q_table = np.zeros((state_size, action_size))
+    q_table = np.zeros((state_space, action_space))
+    returns = np.zeros((state_space, action_space))
+    counts = np.zeros((state_space, action_space))
+    
+    eva = []
 
-    def choose_action(self, state):
-        # Chọn hành động bằng epsilon-greedy policy
-        if np.random.rand() <= self.epsilon:
-            return np.random.choice(self.action_size)  # Chọn hành động ngẫu nhiên
+    def epsilon_greedy(state):
+        if np.random.uniform(0, 1) < epsilon:
+            return env.action_space.sample()  # Explore
         else:
-            return np.argmax(self.q_table[state])  # Chọn hành động có Q-value cao nhất
+            return np.argmax(q_table[state, :])  # Exploit
 
-    def learn(self, state, action, reward, next_state, next_action, done):
-        # SARSA cập nhật Q-value bằng cách sử dụng hành động tiếp theo đã chọn
-        current_q = self.q_table[state, action]
-        next_q = self.q_table[next_state, next_action]
-        target_q = reward + self.gamma * next_q * (1 - done)
-        self.q_table[state, action] = (1 - self.learning_rate) * current_q + self.learning_rate * target_q
+    for episode in range(num_episodes):
+        print(f'---- Episode: {episode}')
+        episode_data = []
+        state = env.reset()
+        done = False
 
-        if done:
-            # Giảm dần epsilon theo thời gian
-            self.epsilon *= self.epsilon_decay
+        while not done:
+            action = epsilon_greedy(state)
+            next_state, reward, done, _ = env.step(action)
+            episode_data.append((state, action, reward))
+            state = next_state
 
-
-class MonteCarloAgent:
-    def __init__(self, state_size, action_size, learning_rate=0.1, gamma=0.99, epsilon=1.0, epsilon_decay=0.995):
-        self.state_size = state_size
-        self.action_size = action_size
-        self.learning_rate = learning_rate
-        self.gamma = gamma
-        self.epsilon = epsilon
-        self.epsilon_decay = epsilon_decay
-        self.q_table = np.zeros((state_size, action_size))
-        self.returns = {}  # Dictionary để lưu trữ returns cho mỗi cặp (state, action)
-
-    def choose_action(self, state):
-        # Chọn hành động bằng epsilon-greedy policy
-        if np.random.rand() <= self.epsilon:
-            return np.random.choice(self.action_size)  # Chọn hành động ngẫu nhiên
-        else:
-            return np.argmax(self.q_table[state])  # Chọn hành động có Q-value cao nhất
-
-    def learn(self, episode):
-        """
-        Hàm học từ một tập episode.
-        Mỗi episode là một danh sách các tuple (state, action, reward).
-        """
+        # Update Q-values using Monte Carlo method
         G = 0
-        visited_state_action_pairs = set()
-        
-        # Duyệt ngược qua episode để cập nhật Q-value
-        for state, action, reward in reversed(episode):
-            G = self.gamma * G + reward  # Tính tổng discounted return
+        for t in reversed(range(len(episode_data))):
+            state, action, reward = episode_data[t]
+            G = reward + G
+            if (state, action) not in episode_data[:t]:
+                counts[state, action] += 1
+                returns[state, action] += G
+                q_table[state, action] = returns[state, action] / counts[state, action]
+        eva.append(G)
+    return q_table, eva
 
-            # Nếu cặp (state, action) chưa từng được thêm vào trong episode này
-            if (state, action) not in visited_state_action_pairs:
-                # Thêm cặp (state, action) vào set đã ghé thăm
-                visited_state_action_pairs.add((state, action))
 
-                # Cập nhật danh sách returns cho cặp (state, action)
-                if (state, action) not in self.returns:
-                    self.returns[(state, action)] = []
-                self.returns[(state, action)].append(G)
+def running_alg(env, q_table):
+    #Evaluate the trained Q-table
+    
+    total_rewards = 0
+    num_episodes_eval = 1
 
-                # Cập nhật Q-value cho cặp (state, action)
-                self.q_table[state, action] = np.mean(self.returns[(state, action)])
+    display.clear_output(wait=True)
+    env.reset()
+    state = env.reset()
+    done = False
 
+    while not done:
+        plt.imshow(env.render())
+        action = np.argmax(q_table[state, :])
+        next_state, reward, done, _ = env.step(action)
+
+        display.display(plt.gcf())
+        display.clear_output(wait=True)
+        total_rewards += reward
+        state = next_state
+    plt.imshow(env.render())
+    display.display(plt.gcf())
+    display.clear_output(wait=True)
+
+    average_reward = total_rewards / num_episodes_eval
+    print(f"Reward over {num_episodes_eval} episodes: {average_reward:}")
+    
+
+    
+def eva_graph(eva):
+    plt.xlabel('Episodes')
+    plt.ylabel('Reward')
+    
+    plt.plot(eva)
         # Giảm dần epsilon theo thời gian
         self.epsilon *= self.epsilon_decay
 
